@@ -1,216 +1,193 @@
 # Speaker EQ
 
-Speaker EQ automatically tunes a speaker, such as a cheap Bluetooth speaker, using your laptop's microphone.
-It plays a test sweep, works out what is wrong with the sound (boomy bass, harsh treble, room peaks,
-distortion), and applies a correcting EQ to everything your computer plays. Simple tone sliders on top let
-you adjust the sound to your taste.
+**Make any speaker sound better with one click.**
+
+Many Bluetooth speakers are badly tuned: boomy bass, harsh treble, muffled vocals. Speaker EQ listens to your
+speaker through your computer's or phone's microphone, works out what is wrong, and applies a correcting EQ to
+everything you play. Simple tone sliders on top let you adjust the sound to your taste.
 
 ![Speaker EQ](docs/screenshot.png)
 
 ## Features
 
-- **One-click auto-tune:** measure, diagnose and correct in about a minute.
+- **One-click Auto-Tune:** measures your speaker in about a minute and corrects it automatically.
 - **Plain-language diagnosis:** for example, "peak +9.9 dB at 190 Hz (bass: boomy)" or "Bass rolls off below 84 Hz".
 - **Tone sliders:** Bass, Warmth, Vocals, Clarity and Treble, applied on top of the auto-tune.
-- **On/off switches:** turn the auto-tune or the whole EQ off to compare by ear.
-- **Loudness matched:** switching the EQ on doesn't make the sound quieter, and a limiter prevents clipping.
-- **Two measurement modes:** *Moving* averages a listening area. *Still* (laptop and speaker can't move) uses
-  gentler, position-safe bass correction.
+- **On/off switches:** compare with and without the EQ at the same loudness.
+- **Moving or Still mode:** average a whole listening area, or tune safely from one fixed spot.
 - **Safe by design:**
   - No boost below the speaker's bass limit.
   - No boost where the speaker already distorts.
-  - Treble changes limited when the mic isn't calibrated.
-  - The mic level is set automatically.
-- **Export** to Equalizer APO / AutoEQ format for Windows (Equalizer APO, Peace) and Android (Wavelet).
+  - No clipping.
+- **Works everywhere:** Linux, Windows and Android, plus export to other EQ apps.
 
-## Platforms
+## Download
 
-| Platform | How |
-|---|---|
-| **Linux** | Full app; the EQ runs through EasyEffects. `.deb` package or run from source |
-| **Windows 10/11** | Full app (`SpeakerEQ.exe`); the EQ runs through Equalizer APO |
-| **Android 9+** | Full app (`SpeakerEQ-1.0.0.apk`): measures with the phone mic; system-wide EQ with limiter |
+| Platform | File | Applies the EQ through |
+|---|---|---|
+| **Windows 10/11** | `SpeakerEQ.exe` | [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) (free) |
+| **Linux** (Ubuntu/Debian) | `speaker-eq_1.0.0_all.deb` | EasyEffects + PipeWire |
+| **Android 9+** | `SpeakerEQ-1.0.0.apk` | Android's built-in system-wide audio effects |
 
-## Requirements (Linux)
-
-- Linux with **PipeWire** (Ubuntu 22.10+, Fedora 34+, and most current distributions)
-- **EasyEffects**, which applies the EQ to all audio
-- Python 3.10+ with numpy, scipy, matplotlib, tkinter and Pillow
-- A microphone (the laptop's built-in mic works; a calibrated USB mic is better, see [Accuracy](#accuracy))
+Get them from the [Releases](../../releases) page.
 
 ## Install
 
-### Option 1: .deb package (Ubuntu / Debian)
+### Windows
 
-Download `speaker-eq_1.0.0_all.deb` from the releases page, or build it yourself (see [Development](#development)). Then:
+1. Install **Equalizer APO**. In its Configurator, tick your speaker (for example "Speakers (K68)") and restart
+   Windows when asked.
+2. Run **SpeakerEQ.exe**. No installation is needed.
+3. The first time the EQ is applied, Windows asks for permission **once**, so Speaker EQ can add its settings
+   to Equalizer APO.
+
+Tip: Equalizer APO ships with demo filters. Remove the `Include: example.txt` line from
+`C:\Program Files\EqualizerAPO\config\config.txt` so only Speaker EQ shapes the sound.
+
+### Linux
 
 ```
 sudo apt install ./speaker-eq_1.0.0_all.deb
 ```
 
-apt installs all dependencies. To remove it: `sudo apt remove speaker-eq`.
+Then open **Speaker EQ** from your apps menu, or run `speaker-eq-gui`. apt installs everything it needs
+(Python, EasyEffects, PipeWire tools).
 
-### Option 2: run from the source folder
+To run from source instead:
 
 ```
 sudo apt install python3-numpy python3-scipy python3-matplotlib python3-tk python3-pil.imagetk \
                  pipewire-bin wireplumber easyeffects
-./install.sh              # adds "Speaker EQ" to the apps menu and the speaker-eq / speaker-eq-gui commands
-./install.sh --uninstall  # removes them
+./install.sh              # adds the app to your menu (./install.sh --uninstall removes it)
 ```
-
-### Windows
-
-1. Install **Equalizer APO** (free): https://sourceforge.net/projects/equalizerapo/
-   - In its **Configurator**, tick your speaker (for example "Speakers (K68)") and restart Windows when it asks.
-   - Optional: in `C:\Program Files\EqualizerAPO\config\config.txt`, remove the demo lines
-     (`Include: example.txt` and its filters) so only Speaker EQ shapes the sound.
-2. Download **SpeakerEQ.exe** from the releases page and run it. No installation is needed.
-3. The first time the EQ is applied, Windows asks for permission **once**. Speaker EQ then creates its own
-   `SpeakerEQ.txt` in Equalizer APO's folder and includes it from `config.txt`.
-
-On Windows, mic-level problems are reported instead of fixed automatically: if a measurement clips, lower
-the microphone level in **Settings → System → Sound → Input**. Equalizer APO has no limiter, so the EQ
-lowers the volume by its largest boost to stay clip-free. Turn the speaker up to compensate.
 
 ### Android
 
-1. Download **SpeakerEQ-1.0.0.apk** from the releases page and open it on the phone. Android asks you to allow
-   installing apps from your browser or file manager the first time.
-2. Connect your Bluetooth speaker, open **Speaker EQ**, and tap **Measure & Auto-Tune**. Allow the microphone
-   when asked. Hold the phone where you listen, 0.5–1 m from the speaker.
-3. Adjust the sliders. The EQ keeps running in the background (there's a "Speaker EQ is on" notification) for
-   every app that plays through the phone.
+1. Open **SpeakerEQ-1.0.0.apk** on your phone. Allow installing from your browser or file manager when Android asks.
+2. Open **Speaker EQ** and allow the microphone when you first measure.
 
-How it works on Android:
-- **Same measurement and analysis** as the desktop app, ported to Kotlin.
-- **EQ engine:** Android's built-in DynamicsProcessing effect on the global output, with 32 bands following
-  the parametric curve, a loudness-matched gain, and a −1 dBFS limiter.
-- **Mic level:** if a measurement clips, the app plays the sweep quieter and measures again.
+The EQ keeps running in the background for every app; a "Speaker EQ is on" notification shows it's active.
 
-Limitations:
-- Some phones block system-wide effects. The status line then says so, and the EQ only applies in music
-  players that offer an equalizer setting (they open an "audio effect session" the app attaches to).
-- After a phone restart, open the app once to switch the EQ back on.
+## How to use
 
-**Alternative:** on the desktop app, **Export…** writes an Equalizer APO / AutoEQ file. You can import it into
-**Wavelet** (AutoEq → Import) or Poweramp Equalizer. The Android app's **Export…** writes the same file.
-
-## Usage
-
-1. Connect your speaker and make it the **default output** (system sound settings).
-2. Open **Speaker EQ** from the apps menu, or run `speaker-eq-gui`.
-3. Set **Moving While Measuring**:
-   - **Off:** the laptop and speaker stay completely still.
-   - **On:** you'll move the laptop slowly while it measures. See [How to move](#how-to-move-the-laptop).
-4. Set the volume you normally listen at, keep the room quiet, and click **Measure & Auto-Tune**.
-5. Read the **Diagnosis**, then adjust to taste:
+1. Connect your speaker and make it the **default audio output**.
+2. Set **Moving While Measuring**:
+   - **Off:** the laptop/phone and speaker stay completely still.
+   - **On:** you'll move it slowly during the measurement (see below).
+3. Set the volume you normally listen at, keep the room quiet, and press **Measure & Auto-Tune**.
+4. Read the **Diagnosis**, then adjust to taste:
    - **Strength:** how much of the automatic correction to apply.
-   - **Tone sliders:** drag, use the mouse wheel, or double-click to reset.
+   - **Tone sliders:** drag, scroll, or double-click/double-tap to reset.
    - **Auto-Tune / Equalizer switches:** compare with and without the EQ.
 
-Your settings are saved automatically and applied every time the app starts.
+Your settings are saved and applied every time the app starts.
 
-### How to move the laptop
+### Measuring tips
 
-Move it within an area about 30–60 cm across around where your head is when you listen:
-
-- **Range:** about 20–30 cm left/right and forward/back, plus a little up and down around ear height.
-- **Speed:** slowly, about 10 cm per second, in a figure-8 or circle the whole time.
-- **Distance:** about the same distance from the speaker, at least 0.5 m away.
-- **Mic:** keep the mic side facing the speaker, and don't cover it or bump the laptop.
-
-### Command line
-
-```
-speaker-eq                  # measure (5 positions, prompts between them), write ParametricEQ.txt + response.png
-speaker-eq --walk           # no prompts; keep moving the mic
-speaker-eq --fixed          # mic and speaker stay still
-speaker-eq --mic-cal FILE   # use a microphone calibration file
-speaker-eq --selftest       # offline check of the whole pipeline
-speaker-eq --help           # all options (target tilt, max boost, number of filters...)
-```
+- **Distance:** put the mic where your head is when you listen, ideally 0.5–1 m from the speaker.
+- **Moving mode:** move the laptop/phone slowly (about 10 cm per second) in a figure-8 or circle, within an
+  area about 30–60 cm across around your listening spot. Keep the same distance from the speaker and keep
+  the mic facing it.
+- **Still mode** is designed for setups that can't move. It corrects the bass more gently, because room effects
+  at one spot don't represent the whole room.
+- **Volume:** measure at your normal volume. Many Bluetooth speakers change their sound with volume, and the
+  diagnosis warns you if yours does.
 
 ## How it works
 
-| Step | Method |
+| Step | What happens |
 |---|---|
-| Noise floor | Records silence first. Frequencies the mic can't hear clearly above the noise aren't EQed |
-| Mic level | Lowers the input volume automatically if the mic saturates or a sweep clips, and restores yours afterwards |
-| Measurement | Exponential sine sweep, 20 Hz–20 kHz (Farina). Bluetooth latency is found automatically |
-| Response | Deconvolution → impulse response → windowing → frequency-dependent smoothing |
-| Distortion | Harmonic distortion read from the same sweep. No boosts where it exceeds 3% |
-| Speaker DSP | A second, quieter sweep shows whether the speaker changes its tone with volume |
-| Usable range | Finds the speaker's real bass and treble limits and doesn't EQ outside them |
-| Target | Flat with a gentle −0.8 dB/octave in-room tilt (Harman research) |
-| EQ fit | Ideal correction → up to 10 parametric filters by bounded least-squares, cutting freely and boosting carefully |
-| Playback | EasyEffects equalizer (same filter math), loudness-matched, with a −1 dBFS limiter |
+| Noise check | Records the room's silence first. Frequencies the mic can't hear clearly above the noise aren't touched |
+| Mic level | Adjusts automatically if the mic saturates or a sweep clips |
+| Measurement | Plays exponential sine sweeps (20 Hz–20 kHz) and records them. Bluetooth delay is detected automatically |
+| Analysis | Impulse response → frequency response with ear-like smoothing; distortion read from the same sweep |
+| Speaker DSP check | A second, quieter sweep shows whether the speaker changes its tone with volume |
+| Usable range | Finds the speaker's real bass and treble limits; nothing is boosted outside them |
+| Target | Flat with a gentle downward slope, the in-room balance listeners prefer (Harman research) |
+| EQ design | Up to 10 parametric filters fitted by least squares: cut freely, boost carefully |
+| Playback | Loudness-matched so the EQ doesn't sound quieter, with a limiter to prevent clipping |
 
-### Research behind it
+The approach combines published techniques from **Sonos Trueplay** (noise screening, frequency-dependent
+smoothing, partial correction of room peaks), **Dirac Live / Audyssey** (multi-position averaging,
+volume-dependent EQ detection), **REW** (no EQ outside the speaker's range), **AutoEQ** (parametric
+optimizer) and **Farina's swept-sine method** (response and distortion from one sweep).
 
-| Solution | Idea used here |
-|---|---|
-| Sonos Trueplay | Noise screening, frequency-dependent smoothing, power averaging, partial correction of room peaks, boost caps, ideal curve → parametric EQ fit |
-| Dirac Live / Audyssey | Averaging several mic positions. Detecting volume-dependent processing (Dynamic EQ) |
-| REW (Room EQ Wizard) | No EQ outside the frequency range the speaker can play. Limited boosts |
-| AutoEQ | Bounded least-squares parametric EQ optimizer, about 10 filters |
-| Farina's exponential sweep | Linear response and distortion from one sweep |
-| Harman in-room research | Downward-sloping target curve |
+## Platform differences
 
-## Accuracy
+| | Linux | Windows | Android |
+|---|---|---|---|
+| Automatic mic level | ✅ | ❌ lower it in Sound settings if asked | ✅ plays quieter instead |
+| Loudness-matched EQ with limiter | ✅ | ❌ volume drops by the largest boost | ✅ |
+| System-wide EQ | ✅ EasyEffects | ✅ Equalizer APO | ✅ on most phones (see below) |
 
-- **The microphone is the main limit.** Laptop and phone mics aren't flat, especially above 5 kHz. Without a
-  calibration file, treble changes are limited to ±3 dB. A calibrated USB mic such as the miniDSP UMIK-1 or
-  Dayton iMM-6 (with its calibration file, loaded via **Mic Calibration…**) makes the whole range trustworthy.
-- The EQ is right for the volume you measured at, because many Bluetooth speakers change their tone with
-  volume. The diagnosis warns you when yours does.
-- The EQ only applies to audio played **by this computer**.
-- EQ can't add bass a small speaker physically can't produce, and it won't push the speaker into distortion.
+## Accuracy and limitations
+
+- **The microphone is the main limit.** Built-in laptop and phone mics aren't flat in the treble, so
+  corrections above 5 kHz are limited to ±3 dB. For full accuracy on desktop, use a calibrated USB mic
+  (e.g. miniDSP UMIK-1) and load its file with **Mic Calibration…**.
+- **EQ can't create bass** a small speaker physically can't produce, and Speaker EQ won't push it into distortion.
+- **The EQ applies to audio from the device running Speaker EQ**, not to other phones or computers connected
+  to the same speaker.
+- **Android:**
+  - Some phones block system-wide effects. The app tells you, and the EQ then works only in music players
+    that have an equalizer setting.
+  - After a phone restart, open the app once to switch the EQ back on.
+- **Linux:** Speaker EQ loads its own EasyEffects preset, which replaces other effects you set up in EasyEffects.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | "Default output is … not a Bluetooth speaker" | Make the speaker the default output in sound settings |
-| "Microphone records noise/garbage" | Check the input device in sound settings. Turn off mic noise suppression |
-| "Recording too quiet" | Turn the speaker up, and check the speaker and mic are the default devices |
-| No change when moving sliders | Make sure the **Equalizer** switch is on and that EasyEffects is installed |
-| Other EasyEffects effects disappeared | Speaker EQ loads its own EasyEffects preset (`SpeakerEQ`) and replaces the current output effects |
+| "Microphone records noise/garbage" | Check the input device. Turn off mic noise suppression or lower the mic level |
+| "Recording too quiet" | Turn the speaker up and check it's connected and selected |
+| "Recording clipped" | Turn the speaker down or move the mic further away |
+| Sliders change nothing | Check the **Equalizer** switch is on. On Windows, check Equalizer APO is enabled for your speaker |
+| Sound got quieter on Windows | Expected: Equalizer APO has no limiter, so the EQ lowers the level to stay clip-free. Turn the speaker up |
+
+## Command line (Linux)
+
+```
+speaker-eq                  # measure 5 positions (prompts between them), write ParametricEQ.txt + response.png
+speaker-eq --walk           # no prompts; keep moving the mic
+speaker-eq --fixed          # mic and speaker stay still
+speaker-eq --mic-cal FILE   # use a microphone calibration file
+speaker-eq --selftest       # offline check of the whole analysis pipeline
+speaker-eq --help           # all options: target tilt, max boost, number of filters, ...
+```
+
+The output file uses the standard Equalizer APO / AutoEQ format, so you can also import it into Peace,
+Wavelet or Poweramp Equalizer.
 
 ## Development
 
 ```
-python3 -m pytest tests                           # 8 tests: pipeline, export, devices, GUI, mouse, still mode, Windows
-./packaging/build-deb.sh                          # builds dist/speaker-eq_<version>_all.deb
-cd android && ./gradlew :app:testDebugUnitTest    # 6 tests on the Kotlin port of the analysis engine
-cd android && ./gradlew :app:assembleRelease      # builds the APK (needs the Android SDK)
+python3 -m pytest tests                          # 8 desktop tests
+./packaging/build-deb.sh                         # build dist/speaker-eq_<version>_all.deb
+cd android && ./gradlew :app:testDebugUnitTest   # 6 tests on the Android analysis engine
+cd android && ./gradlew :app:assembleRelease     # build the APK (needs the Android SDK)
 ```
 
-The release APK is signed with the key named in `~/.android/speaker-eq-release.properties` (not in the repo;
-without it the APK is debug-signed). Keep that key safe: Android only installs updates signed with the same key.
+GitHub Actions runs all tests on Linux, Windows and Android. It builds the `.deb` and `SpeakerEQ.exe` and
+smoke-tests the exe. Pushing a tag like `v1.0.0` publishes a release with the `.deb` and `.exe` attached.
 
-GitHub Actions (`.github/workflows/build.yml`) runs the tests on Linux and Windows. It builds the `.deb`
-and `SpeakerEQ.exe` (PyInstaller) and smoke-tests the exe. Pushing a tag like `v1.0.0` publishes both
-files as a GitHub release.
-
-| File | Purpose |
+| Path | Purpose |
 |---|---|
 | `speaker_eq.py` | Measurement, analysis, diagnosis, EQ fitting, command line |
-| `speaker_eq_gui.py` | Desktop app and EasyEffects integration |
-| `install.sh` | Per-user install from the source folder |
-| `packaging/build-deb.sh` | Debian package build |
-| `.github/workflows/build.yml` | CI: tests, .deb and Windows .exe builds, releases |
-| `tests/` | pytest suite |
-| `android/` | Android app (Kotlin, Jetpack Compose): `Dsp.kt` analysis, `Audio.kt` audio + EQ engine, `MainActivity.kt` UI |
+| `speaker_eq_gui.py` | Desktop app; EasyEffects (Linux) and Equalizer APO (Windows) integration |
+| `android/` | Android app (Kotlin + Jetpack Compose): `Dsp.kt` analysis, `Audio.kt` audio and EQ engine, `MainActivity.kt` UI |
+| `tests/` | Desktop test suite |
+| `packaging/build-deb.sh`, `install.sh` | Linux packaging and per-user install |
+| `.github/workflows/build.yml` | CI: tests, builds, releases |
 
-User data (settings and last measurement) lives in `~/.local/share/speaker-eq/` (Windows: `%APPDATA%\speaker-eq`).
+Settings and the last measurement are stored in `~/.local/share/speaker-eq/` (Linux),
+`%APPDATA%\speaker-eq` (Windows) or the app's private storage (Android).
 
-## Sources
+## References
 
-- Sonos tech blog, Trueplay spectral correction: https://tech-blog.sonos.com/posts/trueplay-spectral-correction/
-- Dirac Live: https://www.dirac.com/live/rc/ and https://www.audioholics.com/room-acoustics/dirac-room-correction-interview
-- Audyssey: https://www.audioholics.com/room-acoustics/audyssey-room-eq-interview
-- REW: https://www.roomeqwizard.com/help/help/html/eqsettings.html
+- Sonos Engineering, *Trueplay spectral correction*: https://tech-blog.sonos.com/posts/trueplay-spectral-correction/
+- Dirac Live room correction: https://www.dirac.com/live/rc/
+- Audyssey MultEQ: https://www.audioholics.com/room-acoustics/audyssey-room-eq-interview
+- REW (Room EQ Wizard) EQ settings: https://www.roomeqwizard.com/help/help/html/eqsettings.html
 - AutoEQ: https://github.com/jaakkopasanen/AutoEq
-- Phone-mic calibration (EasyEyes): https://arxiv.org/pdf/2510.25048
-- A. Farina, "Simultaneous measurement of impulse response and distortion with a swept-sine technique", AES 2000
+- A. Farina, *Simultaneous measurement of impulse response and distortion with a swept-sine technique*, AES 2000
