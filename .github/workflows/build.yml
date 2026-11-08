@@ -26,6 +26,18 @@ jobs:
           name: speaker-eq-linux-deb
           path: dist/*.deb
 
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Unit tests (Kotlin port of the analysis engine)
+        working-directory: android
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
+
   windows:
     runs-on: windows-latest
     steps:

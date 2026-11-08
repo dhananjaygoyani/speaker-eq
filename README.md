@@ -29,7 +29,7 @@ you adjust the sound to your taste.
 |---|---|
 | **Linux** | Full app; the EQ runs through EasyEffects. `.deb` package or run from source |
 | **Windows 10/11** | Full app (`SpeakerEQ.exe`); the EQ runs through Equalizer APO |
-| **Android** | Measure on a computer, **Export…**, then import into Wavelet (see [Android](#android)) |
+| **Android 9+** | Full app (`SpeakerEQ-1.0.0.apk`): measures with the phone mic; system-wide EQ with limiter |
 
 ## Requirements (Linux)
 
@@ -75,16 +75,26 @@ lowers the volume by its largest boost to stay clip-free. Turn the speaker up to
 
 ### Android
 
-Android has no system-wide EasyEffects or Equalizer APO, so you tune on a computer and use the result on
-the phone:
+1. Download **SpeakerEQ-1.0.0.apk** from the releases page and open it on the phone. Android asks you to allow
+   installing apps from your browser or file manager the first time.
+2. Connect your Bluetooth speaker, open **Speaker EQ**, and tap **Measure & Auto-Tune**. Allow the microphone
+   when asked. Hold the phone where you listen, 0.5–1 m from the speaker.
+3. Adjust the sliders. The EQ keeps running in the background (there's a "Speaker EQ is on" notification) for
+   every app that plays through the phone.
 
-1. Measure your speaker with Speaker EQ on Linux or Windows, then adjust the sliders.
-2. Click **Export…** and save `SpeakerEQ_APO.txt`.
-3. Copy the file to your phone and install **Wavelet** (Google Play).
-4. In Wavelet, open **AutoEq → Import** and choose the file. Enable Wavelet for your Bluetooth speaker.
+How it works on Android:
+- **Same measurement and analysis** as the desktop app, ported to Kotlin.
+- **EQ engine:** Android's built-in DynamicsProcessing effect on the global output, with 32 bands following
+  the parametric curve, a loudness-matched gain, and a −1 dBFS limiter.
+- **Mic level:** if a measurement clips, the app plays the sweep quieter and measures again.
 
-The file uses the standard Equalizer APO / AutoEQ format, so other apps that import AutoEq parametric
-profiles (for example Poweramp Equalizer) work too.
+Limitations:
+- Some phones block system-wide effects. The status line then says so, and the EQ only applies in music
+  players that offer an equalizer setting (they open an "audio effect session" the app attaches to).
+- After a phone restart, open the app once to switch the EQ back on.
+
+**Alternative:** on the desktop app, **Export…** writes an Equalizer APO / AutoEQ file. You can import it into
+**Wavelet** (AutoEq → Import) or Poweramp Equalizer. The Android app's **Export…** writes the same file.
 
 ## Usage
 
@@ -170,9 +180,14 @@ speaker-eq --help           # all options (target tilt, max boost, number of fil
 ## Development
 
 ```
-python3 -m pytest tests         # 8 tests: pipeline, export, devices, GUI, mouse events, still mode, Windows paths
-./packaging/build-deb.sh        # builds dist/speaker-eq_<version>_all.deb
+python3 -m pytest tests                           # 8 tests: pipeline, export, devices, GUI, mouse, still mode, Windows
+./packaging/build-deb.sh                          # builds dist/speaker-eq_<version>_all.deb
+cd android && ./gradlew :app:testDebugUnitTest    # 6 tests on the Kotlin port of the analysis engine
+cd android && ./gradlew :app:assembleRelease      # builds the APK (needs the Android SDK)
 ```
+
+The release APK is signed with the key named in `~/.android/speaker-eq-release.properties` (not in the repo;
+without it the APK is debug-signed). Keep that key safe: Android only installs updates signed with the same key.
 
 GitHub Actions (`.github/workflows/build.yml`) runs the tests on Linux and Windows. It builds the `.deb`
 and `SpeakerEQ.exe` (PyInstaller) and smoke-tests the exe. Pushing a tag like `v1.0.0` publishes both
@@ -186,6 +201,7 @@ files as a GitHub release.
 | `packaging/build-deb.sh` | Debian package build |
 | `.github/workflows/build.yml` | CI: tests, .deb and Windows .exe builds, releases |
 | `tests/` | pytest suite |
+| `android/` | Android app (Kotlin, Jetpack Compose): `Dsp.kt` analysis, `Audio.kt` audio + EQ engine, `MainActivity.kt` UI |
 
 User data (settings and last measurement) lives in `~/.local/share/speaker-eq/` (Windows: `%APPDATA%\speaker-eq`).
 
