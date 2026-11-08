@@ -1,0 +1,9 @@
+__pycache__/
+gui_state.json
+ParametricEQ.txt
+response.png
+dist/
+*.ico
+build/
+*.spec
+.pytest_cache/

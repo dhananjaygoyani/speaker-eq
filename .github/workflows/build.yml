@@ -1,0 +1,71 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-numpy python3-scipy python3-matplotlib python3-tk python3-pil \
+            python3-pil.imagetk python3-pytest xvfb
+      - name: Test (GUI tests run on a virtual display)
+        run: xvfb-run -a python3 -m pytest -v tests
+      - name: Build .deb
+        run: ./packaging/build-deb.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: speaker-eq-linux-deb
+          path: dist/*.deb
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install numpy scipy matplotlib pillow sounddevice pyinstaller pytest
+      - name: Test
+        run: python -m pytest -v tests
+      - name: Build SpeakerEQ.exe
+        run: |
+          python -c "from PIL import Image; Image.open('speaker-eq.png').save('speaker-eq.ico', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128)])"
+          pyinstaller --noconfirm --onefile --windowed --name SpeakerEQ --icon speaker-eq.ico --add-data "speaker-eq.png;." speaker_eq_gui.py
+      - name: Smoke test the exe (bundled self-test, then the window stays open)
+        shell: pwsh
+        run: |
+          $p = Start-Process dist\SpeakerEQ.exe -ArgumentList '--selftest' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "bundled selftest failed (exit $($p.ExitCode))" }
+          $g = Start-Process dist\SpeakerEQ.exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($g.HasExited) { throw "GUI exited early (exit $($g.ExitCode))" }
+          Stop-Process -Id $g.Id -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SpeakerEQ-windows-exe
+          path: dist/SpeakerEQ.exe
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
