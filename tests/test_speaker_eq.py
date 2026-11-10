@@ -153,3 +153,45 @@ def test_windows_measurement_path(tmp_path, monkeypatch):
     eq = se.peq_db(se.measure(a)[0])
     at = lambda f: eq[np.searchsorted(se.GRID, f)]
     assert at(1000) - at(300) < -4 and at(1000) - at(3000) < -4, 'should cut the 1 kHz peak'
+
+
+def test_mdns_reply_parsing():
+    """Instance name from an mDNS PTR reply (with a compression pointer); junk and pointer loops are ignored."""
+    import struct
+    import speaker_eq_gui as g
+    q = b''.join(bytes([len(x)]) + x for x in b'_speakereq._tcp.local'.split(b'.')) + b'\0'
+    inst = bytes([len(b'Speaker EQ on AFTSSS')]) + b'Speaker EQ on AFTSSS' + b'\xc0\x0c'  # ...+ pointer to the query name
+    reply = (struct.pack('>6H', 0, 0x8400, 1, 1, 0, 0) + q + struct.pack('>HH', 12, 1) +
+             b'\xc0\x0c' + struct.pack('>HHIH', 12, 1, 120, len(inst)) + inst)
+    assert g.mdns_instance(reply) == 'Speaker EQ on AFTSSS'
+    assert g.mdns_instance(b'\x00' * 5) is None
+    loop = struct.pack('>6H', 0, 0x8400, 1, 0, 0, 0) + b'\xc0\x0c'  # name pointing at itself
+    assert g.mdns_instance(loop) is None
+
+
+def test_send_to_tv(tmp_path):
+    """Send to TV posts the EQ text with the code; unreachable devices give a readable message."""
+    import http.server, threading
+    import speaker_eq_gui as g
+    got = {}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            got['path'] = self.path
+            got['body'] = self.rfile.read(int(self.headers['Content-Length'])).decode()
+            self.send_response(200 if 'code=1234' in self.path else 403)
+            self.end_headers()
+            self.wfile.write(b'Sent: 1 filters applied.' if 'code=1234' in self.path else b'Wrong code')
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(('127.0.0.1', 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    addr = f'127.0.0.1:{srv.server_port}'
+    eq = 'Filter 1: ON PK Fc 190 Hz Gain -8.0 dB Q 2.50\n'
+    assert g.send_to_tv(addr, '1234', eq) == 'Sent: 1 filters applied.'
+    assert got == {'path': '/eq?code=1234', 'body': eq}
+    assert g.send_to_tv(addr, '0000', eq) == 'Wrong code'  # error body is shown to the user
+    srv.shutdown()
+    assert 'Could not reach' in g.send_to_tv('127.0.0.1:1', '1234', eq)

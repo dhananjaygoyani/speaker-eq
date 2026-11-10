@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Speaker EQ: one-click auto-tune plus simple tone sliders, applied live through EasyEffects."""
-import argparse, contextlib, io, json, os, subprocess, sys, threading
+import argparse, contextlib, io, json, os, socket, struct, subprocess, sys, tempfile, threading, time
+import urllib.error, urllib.parse, urllib.request
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, messagebox
 
@@ -77,6 +78,85 @@ def loudness_gain(filters):
     our hearing are), instead of the worst-case -max(boost) that made everything sound much quieter."""
     band = (se.GRID >= 100) & (se.GRID <= 6000)
     return float(np.clip(-se.peq_db(filters)[band].mean(), -12, 6).round(1))
+
+
+TV_PORT = 8765  # Speaker EQ's wireless receiver (Android / Fire TV app)
+
+
+def _dns_name(data, i):
+    """DNS name at offset i (follows compression pointers); returns (labels, offset after the name)."""
+    labels, end = [], None
+    for _ in range(128):  # bounded: a malicious pointer loop can't hang us
+        n = data[i]
+        if n == 0:
+            return labels, end if end is not None else i + 1
+        if n & 0xC0 == 0xC0:
+            end = i + 2 if end is None else end
+            i = ((n & 0x3F) << 8) | data[i + 1]
+            continue
+        labels.append(data[i + 1:i + 1 + n].decode('utf-8', 'replace'))
+        i += 1 + n
+    raise IndexError('DNS name too long')
+
+
+def mdns_instance(data):
+    """Instance name ("Speaker EQ on AFTSSS") from an mDNS reply to our PTR query, else None."""
+    try:
+        qd, an = struct.unpack('>HH', data[4:8])
+        i = 12
+        for _ in range(qd):
+            i = _dns_name(data, i)[1] + 4
+        for _ in range(an):
+            name, i = _dns_name(data, i)
+            typ, _cls, _ttl, rdlen = struct.unpack('>HHIH', data[i:i + 10])
+            i += 10
+            if typ == 12 and [x.lower() for x in name[:2]] == ['_speakereq', '_tcp']:
+                return _dns_name(data, i)[0][0]
+            i += rdlen
+    except (IndexError, struct.error):
+        pass  # malformed packet from the network: ignore it
+    return None
+
+
+def discover_tvs(timeout=3.0):
+    """Speaker EQ receivers on the Wi-Fi ({address: name}), via the same DNS-SD service the phone app finds."""
+    q = (struct.pack('>6H', 0, 0, 1, 0, 0, 0) +
+         b''.join(bytes([len(x)]) + x for x in b'_speakereq._tcp.local'.split(b'.')) + b'\0' + struct.pack('>HH', 12, 1))
+    found, end = {}, time.time() + timeout
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    try:
+        s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
+        s.settimeout(0.5)
+        while time.time() < end:
+            s.sendto(q, ('224.0.0.251', 5353))
+            try:
+                data, (ip, _port) = s.recvfrom(9000)
+            except socket.timeout:
+                continue
+            name = mdns_instance(data)
+            if name:
+                found[f'{ip}:{TV_PORT}'] = name
+    except OSError:
+        pass  # no network: the address can still be typed in
+    finally:
+        s.close()
+    return found
+
+
+def send_to_tv(address, code, text):
+    """POST EQ text to a Speaker EQ receiver; returns its reply or a readable error."""
+    address = address.strip()
+    if ':' not in address:
+        address += f':{TV_PORT}'
+    url = f'http://{address}/eq?code={urllib.parse.quote(code.strip())}'
+    req = urllib.request.Request(url, data=text.encode(), method='POST', headers={'Content-Type': 'text/plain; charset=utf-8'})
+    try:
+        with urllib.request.urlopen(req, timeout=4) as r:
+            return r.read().decode('utf-8', 'replace')
+    except urllib.error.HTTPError as e:  # wrong code / bad file: the receiver explains why
+        return e.read().decode('utf-8', 'replace')
+    except (urllib.error.URLError, OSError):
+        return f'Could not reach {address}. Check both are on the same Wi-Fi and Speaker EQ is open on the TV.'
 
 
 def apo_config_dir():
@@ -303,7 +383,8 @@ class App:
         self.status.grid(row=1, column=0, sticky='w')
         links = tk.Frame(head, bg=BG)
         links.grid(row=0, column=2, rowspan=2, padx=(0, 16))
-        for text, cmd in (('Reset', self.reset), ('Export…', self.export), ('Mic Calibration…', self.pick_cal)):
+        for text, cmd in (('Reset', self.reset), ('Export…', self.export), ('Send to TV…', self.send_tv),
+                          ('Mic Calibration…', self.pick_cal)):
             lb = tk.Label(links, text=text, font=font(11), bg=BG, fg=BLUE, cursor='hand2')
             lb.pack(side='left', padx=8)
             lb.bind('<Button-1>', lambda e, cmd=cmd: cmd())
@@ -509,6 +590,70 @@ class App:
         if path:
             se.write_apo(path, self.filters())
             self.status.config(text=f'Exported {os.path.basename(path)}')
+
+    def send_tv(self):
+        """Find Speaker EQ on TVs/phones on the Wi-Fi and send the current EQ there."""
+        w = tk.Toplevel(self.root, bg=BG, padx=20, pady=16)
+        w.title('Send to TV')
+        w.transient(self.root)
+        tk.Label(w, text='Send EQ to a TV', font=font(16, 'bold'), bg=BG, fg=TEXT).pack(anchor='w')
+        info = tk.Label(w, text='Searching your Wi-Fi…', font=font(10), bg=BG, fg=SUB, justify='left')
+        info.pack(anchor='w', pady=(2, 8))
+        lst = tk.Listbox(w, height=4, width=42, font=font(11), relief='flat', highlightthickness=1,
+                         highlightcolor=BLUE, selectbackground=BLUE, activestyle='none')
+        lst.pack(fill='x')
+        addrs = []
+        tk.Label(w, text='Address', font=font(10), bg=BG, fg=SUB).pack(anchor='w', pady=(10, 0))
+        addr = tk.Entry(w, font=font(12), relief='flat', highlightthickness=1)
+        addr.pack(fill='x')
+        tk.Label(w, text='Code shown on the TV', font=font(10), bg=BG, fg=SUB).pack(anchor='w', pady=(8, 0))
+        code = tk.Entry(w, font=font(16, 'bold'), width=6, relief='flat', highlightthickness=1)
+        code.pack(anchor='w')
+        result = tk.Label(w, text='', font=font(11), bg=BG, fg=TEXT, wraplength=380, justify='left')
+        result.pack(anchor='w', pady=(10, 4))
+
+        def pick(_e=None):
+            if lst.curselection():
+                addr.delete(0, 'end')
+                addr.insert(0, addrs[lst.curselection()[0]])
+        lst.bind('<<ListboxSelect>>', pick)
+
+        def found(devs):
+            if not w.winfo_exists():
+                return
+            for a, name in devs.items():
+                addrs.append(a)
+                lst.insert('end', f'{name}   ({a})')
+            info.config(text='Found on your Wi-Fi:' if devs else
+                        'No TV found. Open Speaker EQ on the TV, or type the address shown on its Wireless import card.')
+            if devs and not addr.get():
+                lst.selection_set(0)
+                pick()
+        box = {}  # filled by the worker; Tk may only be touched from the main thread, so poll it
+        threading.Thread(target=lambda: box.update(devs=discover_tvs()), daemon=True).start()
+
+        def wait_found():
+            if w.winfo_exists():
+                found(box['devs']) if 'devs' in box else w.after(200, wait_found)
+        w.after(200, wait_found)
+
+        def send():
+            if not addr.get().strip() or not code.get().strip():
+                result.config(text='Enter the address and the 4-digit code shown on the TV.')
+                return
+            with tempfile.TemporaryDirectory() as d:  # same text as Export…
+                se.write_apo(os.path.join(d, 'eq.txt'), self.filters())
+                text = open(os.path.join(d, 'eq.txt')).read()
+            result.config(text='Sending…')
+            a, c, sent = addr.get(), code.get(), {}
+            threading.Thread(target=lambda: sent.update(r=send_to_tv(a, c, text)), daemon=True).start()
+
+            def wait_sent():
+                if w.winfo_exists():
+                    result.config(text=sent['r']) if 'r' in sent else w.after(200, wait_sent)
+            w.after(200, wait_sent)
+        Pill(w, 'Send', send).pack(anchor='e', pady=(6, 0))
+        code.bind('<Return>', lambda _e: send())
 
     def measure(self):
         how = ('Keep moving the laptop slowly around where you sit.' if self.moving.get() else

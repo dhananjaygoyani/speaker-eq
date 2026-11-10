@@ -26,9 +26,9 @@ everything you play. Simple tone sliders on top let you adjust the sound to your
 | Platform | File | Applies the EQ through |
 |---|---|---|
 | **Windows 10/11** | `SpeakerEQ.exe` | [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) (free) |
-| **Linux** (Ubuntu/Debian) | `speaker-eq_1.0.0_all.deb` | EasyEffects + PipeWire |
+| **Linux** (Ubuntu/Debian) | `speaker-eq_1.1.0_all.deb` | EasyEffects + PipeWire |
 | **Android 9+** | `SpeakerEQ-1.1.0.apk` | Android's built-in system-wide audio effects |
-| **Fire TV / Android TV** | `SpeakerEQ-1.1.0.apk` (same file) | Same as Android: measure on a phone, import on the TV |
+| **Fire TV / Android TV** | `SpeakerEQ-TV-1.1.0.apk` (the same app; either file works) | Same as Android: measure on a phone or PC, send it to the TV |
 
 Get them from the [Releases](../../releases) page.
 
@@ -48,7 +48,7 @@ Tip: Equalizer APO ships with demo filters. Remove the `Include: example.txt` li
 ### Linux
 
 ```
-sudo apt install ./speaker-eq_1.0.0_all.deb
+sudo apt install ./speaker-eq_1.1.0_all.deb
 ```
 
 Then open **Speaker EQ** from your apps menu, or run `speaker-eq-gui`. apt installs everything it needs
@@ -90,8 +90,9 @@ Every device running Speaker EQ can receive an EQ over Wi-Fi. Its **Wireless imp
 **code**, and an EQ is only accepted with that code.
 
 - **From a phone:** Speaker EQ → **Send to TV…** → pick the device (found automatically) → enter the code → **Send**.
-- **From a computer:** open the address shown on the card (e.g. `http://192.168.1.97:8765`) in a browser,
-  choose an exported EQ file or paste it, enter the code and press **Send**. No app needed on the computer.
+- **From the desktop app (Linux/Windows):** **Send to TV…** → pick the TV (found automatically) → enter the code → **Send**.
+- **From any computer:** open the address shown on the card (e.g. `http://192.168.1.97:8765`) in a browser,
+  choose an exported EQ file or paste it, enter the code and press **Send**. No app needed.
 
 Files from Speaker EQ, AutoEQ and Equalizer APO all work. The receiver keeps listening while the EQ is on,
 even with the app closed. The code changes every time the device restarts.
@@ -107,6 +108,7 @@ even with the app closed. The code changes every time the device restarts.
    - **Strength:** how much of the automatic correction to apply.
    - **Tone sliders:** drag, scroll, or double-click/double-tap to reset.
    - **Auto-Tune / Equalizer switches:** compare with and without the EQ.
+5. Optional: **Send to TV…** sends the tuning to Speaker EQ on a Fire TV, Android TV or phone on the same Wi-Fi.
 
 Your settings are saved and applied every time the app starts.
 
@@ -192,9 +194,9 @@ Wavelet or Poweramp Equalizer.
 ## Development
 
 ```
-python3 -m pytest tests                          # 8 desktop tests
+python3 -m pytest tests                          # 10 desktop tests
 ./packaging/build-deb.sh                         # build dist/speaker-eq_<version>_all.deb
-cd android && ./gradlew :app:testDebugUnitTest   # 6 tests on the Android analysis engine
+cd android && ./gradlew :app:testDebugUnitTest   # 8 Android tests (analysis, import, wireless)
 cd android && ./gradlew :app:assembleRelease     # build the APK (needs the Android SDK)
 ```
 
