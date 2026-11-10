@@ -26,9 +26,9 @@ everything you play. Simple tone sliders on top let you adjust the sound to your
 | Platform | File | Applies the EQ through |
 |---|---|---|
 | **Windows 10/11** | `SpeakerEQ.exe` | [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) (free) |
-| **Linux** (Ubuntu/Debian) | `speaker-eq_1.1.0_all.deb` | EasyEffects + PipeWire |
-| **Android 9+** | `SpeakerEQ-1.1.0.apk` | Android's built-in system-wide audio effects |
-| **Fire TV / Android TV** | `SpeakerEQ-TV-1.1.0.apk` (the same app; either file works) | Same as Android: measure on a phone or PC, send it to the TV |
+| **Linux** (Ubuntu/Debian) | `speaker-eq_1.1.1_all.deb` | EasyEffects + PipeWire |
+| **Android 9+** | `SpeakerEQ-1.1.1.apk` | Android's built-in system-wide audio effects |
+| **Fire TV / Android TV** | `SpeakerEQ-TV-1.1.1.apk` (the same app; either file works) | Same as Android: measure on a phone or PC, send it to the TV |
 
 Get them from the [Releases](../../releases) page.
 
@@ -48,7 +48,7 @@ Tip: Equalizer APO ships with demo filters. Remove the `Include: example.txt` li
 ### Linux
 
 ```
-sudo apt install ./speaker-eq_1.1.0_all.deb
+sudo apt install ./speaker-eq_1.1.1_all.deb
 ```
 
 Then open **Speaker EQ** from your apps menu, or run `speaker-eq-gui`. apt installs everything it needs
@@ -64,7 +64,7 @@ sudo apt install python3-numpy python3-scipy python3-matplotlib python3-tk pytho
 
 ### Android
 
-1. Open **SpeakerEQ-1.1.0.apk** on your phone. Allow installing from your browser or file manager when Android asks.
+1. Open **SpeakerEQ-1.1.1.apk** on your phone. Allow installing from your browser or file manager when Android asks.
 2. Open **Speaker EQ** and allow the microphone when you first measure.
 
 The EQ keeps running in the background for every app; a "Speaker EQ is on" notification shows it's active.

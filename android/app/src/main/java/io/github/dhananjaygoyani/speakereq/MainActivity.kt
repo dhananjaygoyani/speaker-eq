@@ -238,6 +238,24 @@ class MainActivity : ComponentActivity() {
                 Link("Send to TV…") { sending = true }
             }
 
+            Section("WIRELESS IMPORT", top = 8.dp)
+            Card {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Receive EQ from another device", fontSize = 15.sp, color = TEXT)
+                        Text("Phone or PC: open Speaker EQ → Send to TV… → pick this device → enter this code" +
+                            (Wireless.localAddress()?.let { "\nAny browser: open http://$it" } ?: ""),
+                            fontSize = 12.sp, color = SUB, lineHeight = 17.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("CODE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SUB)
+                        Text(Wireless.code, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = BLUE, letterSpacing = 4.sp)
+                    }
+                }
+            }
+
+
+            Spacer(Modifier.height(14.dp))
             Card {
                 SwitchRow("Auto-Tune", "Corrects what the measurement found", s.autoOn) { update(s.copy(autoOn = it)) }
                 SliderRow("Strength", "", s.amount, 0f..100f, 5f, 100f, false, s.autoOn, { "${it.roundToInt()}%" }) {
@@ -265,22 +283,6 @@ class MainActivity : ComponentActivity() {
 
             Section("FREQUENCY RESPONSE")
             Card { Graph(s) }
-
-            Section("WIRELESS IMPORT")
-            Card {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Receive EQ from another device", fontSize = 15.sp, color = TEXT)
-                        Text("Phone: Speaker EQ → Send to TV…" +
-                            (Wireless.localAddress()?.let { "\nComputer: open http://$it in a browser" } ?: ""),
-                            fontSize = 12.sp, color = SUB, lineHeight = 17.sp)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("CODE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SUB)
-                        Text(Wireless.code, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = BLUE, letterSpacing = 4.sp)
-                    }
-                }
-            }
 
             Section("DIAGNOSIS")
             Card {
@@ -375,8 +377,8 @@ private fun Card(content: @Composable ColumnScope.() -> Unit) = Column(
 )
 
 @Composable
-private fun Section(text: String) =
-    Text(text, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SUB, modifier = Modifier.padding(start = 6.dp, top = 18.dp, bottom = 6.dp))
+private fun Section(text: String, top: androidx.compose.ui.unit.Dp = 18.dp) =
+    Text(text, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SUB, modifier = Modifier.padding(start = 6.dp, top = top, bottom = 6.dp))
 
 @Composable
 private fun Sep() = Box(Modifier.fillMaxWidth().padding(vertical = 8.dp).height(1.dp).background(TRACK))
