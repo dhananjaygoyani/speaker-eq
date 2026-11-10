@@ -439,6 +439,15 @@ object Dsp {
         return (-idx.sumOf { eq[it] } / idx.size).coerceIn(-12.0, 6.0)
     }
 
+    /** Filters from an Equalizer APO / AutoEQ file (our Export, the desktop app, AutoEQ). Preamp lines are
+     *  ignored: the app sets its own loudness-matched gain. */
+    fun parseApo(text: String): List<Filter> =
+        Regex("""Filter\s*\d*\s*:\s*ON\s+(PK|LSC|HSC)\s+Fc\s+([\d.]+)\s*Hz\s+Gain\s+(-?[\d.]+)\s*dB\s+Q\s+([\d.]+)""",
+            RegexOption.IGNORE_CASE).findAll(text).map {
+            val (kind, f, g, q) = it.destructured
+            Filter(f.toDouble(), g.toDouble(), q.toDouble(), kind.uppercase())
+        }.filter { it.f in 10.0..24000.0 && it.q > 0 && it.g in -30.0..30.0 }.toList() // untrusted file: sane values only
+
     /** Equalizer APO / AutoEQ text (same as speaker_eq.write_apo), for sharing with desktop or Wavelet. */
     fun apoText(filters: List<Filter>): String {
         val pre = -ceil(max(0.0, peqDb(filters).max()) * 10) / 10 + 0.0

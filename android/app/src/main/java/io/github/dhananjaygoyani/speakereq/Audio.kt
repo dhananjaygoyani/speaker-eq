@@ -67,6 +67,8 @@ object AudioIO {
             rec.release()
         }
         val skip = Dsp.ms(300.0) // drop the mic start-up click; playback starts 500 ms in
+        if (count < skip + sig.size) throw Dsp.MeasureError( // Fire TV / Android TV: the mic delivers no audio to apps
+            "This device has no usable microphone. Measure with your phone or computer, then use Import.")
         return DoubleArray(max(0, count - skip)) { buf[skip + it].toDouble() }
     }
 
@@ -107,7 +109,7 @@ object Store {
     fun load(ctx: Context): Saved = try {
         val j = JSONObject(prefs(ctx).getString("state", null) ?: return Saved())
         val auto = j.getJSONArray("auto").let { a ->
-            List(a.length()) { a.getJSONArray(it).let { f -> Dsp.Filter(f.getDouble(0), f.getDouble(1), f.getDouble(2)) } }
+            List(a.length()) { a.getJSONArray(it).let { f -> Dsp.Filter(f.getDouble(0), f.getDouble(1), f.getDouble(2), f.optString(3, "PK")) } }
         }
         val dev = j.optJSONArray("dev")?.let { a -> List(a.length()) { a.getDouble(it) } }
         val sl = j.getJSONObject("sliders")
@@ -119,7 +121,7 @@ object Store {
 
     fun save(ctx: Context, s: Saved) {
         val j = JSONObject()
-            .put("auto", JSONArray(s.auto.map { JSONArray(listOf(it.f, it.g, it.q)) }))
+            .put("auto", JSONArray(s.auto.map { JSONArray(listOf(it.f, it.g, it.q, it.kind)) })) // kind: imported shelves
             .put("dev", s.dev?.let { JSONArray(it) })
             .put("amount", s.amount.toDouble()).put("enabled", s.enabled).put("autoOn", s.autoOn)
             .put("moving", s.moving).put("sliders", JSONObject(s.sliders.mapValues { it.value.toDouble() }))

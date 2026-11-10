@@ -97,4 +97,12 @@ class DspTest {
         assertEquals(0.0, Dsp.loudnessGain(emptyList()), 1e-9)
         assertTrue(Dsp.loudnessGain(listOf(Filter(1000.0, 6.0, 0.7))) < -1) // boosts -> turn down a little
     }
+
+    @Test fun importReadsOwnExportAndAutoEq() {
+        val f = listOf(Filter(100.0, 4.0, 0.71, "LSC"), Filter(812.0, -5.5, 2.16), Filter(8000.0, -2.0, 0.71, "HSC"))
+        assertEquals(f, Dsp.parseApo(Dsp.apoText(f)))
+        val autoEq = "Preamp: -6.2 dB\nFilter 1: ON LSC Fc 105 Hz Gain 5.9 dB Q 0.70\nFilter 2: ON PK Fc 2400 Hz Gain -3.1 dB Q 1.41\n"
+        assertEquals(listOf(Filter(105.0, 5.9, 0.70, "LSC"), Filter(2400.0, -3.1, 1.41)), Dsp.parseApo(autoEq))
+        assertTrue(Dsp.parseApo("hello\nFilter 1: ON PK Fc 0 Hz Gain 99 dB Q 1").isEmpty()) // junk rejected
+    }
 }

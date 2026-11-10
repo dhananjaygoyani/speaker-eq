@@ -27,7 +27,8 @@ everything you play. Simple tone sliders on top let you adjust the sound to your
 |---|---|---|
 | **Windows 10/11** | `SpeakerEQ.exe` | [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) (free) |
 | **Linux** (Ubuntu/Debian) | `speaker-eq_1.0.0_all.deb` | EasyEffects + PipeWire |
-| **Android 9+** | `SpeakerEQ-1.0.0.apk` | Android's built-in system-wide audio effects |
+| **Android 9+** | `SpeakerEQ-1.0.1.apk` | Android's built-in system-wide audio effects |
+| **Fire TV / Android TV** | `SpeakerEQ-1.0.1.apk` (same file) | Same as Android: measure on a phone, import on the TV |
 
 Get them from the [Releases](../../releases) page.
 
@@ -63,10 +64,27 @@ sudo apt install python3-numpy python3-scipy python3-matplotlib python3-tk pytho
 
 ### Android
 
-1. Open **SpeakerEQ-1.0.0.apk** on your phone. Allow installing from your browser or file manager when Android asks.
+1. Open **SpeakerEQ-1.0.1.apk** on your phone. Allow installing from your browser or file manager when Android asks.
 2. Open **Speaker EQ** and allow the microphone when you first measure.
 
 The EQ keeps running in the background for every app; a "Speaker EQ is on" notification shows it's active.
+
+### Fire TV Stick / Android TV
+
+Fire TV devices have no microphone that apps can record from, so you measure with your phone and import the
+result on the TV. The EQ then applies to every app on the Fire TV (Netflix, YouTube, Prime Video…).
+
+1. On the Fire TV: **Settings → My Fire TV → Developer options** → turn on **Apps from Unknown Sources**
+   (if Developer options is hidden: **About** → press the device name 7 times).
+2. Install the APK with the **Downloader** app, then pair your speaker under
+   **Settings → Controllers & Bluetooth Devices**.
+3. On your phone: measure the speaker with Speaker EQ (same spot you'll listen from), then **Export…**.
+4. Get the exported `.txt` file into the Fire TV's **Download** folder, for example with the Downloader app
+   (download it from a link) or a "send files to TV" app.
+5. On the Fire TV: open Speaker EQ, select **Import…** and allow file access. It loads the newest EQ file
+   in Downloads.
+
+Use the remote's arrow keys to move between controls; ◀ ▶ adjusts the focused slider.
 
 ## How to use
 
@@ -128,6 +146,7 @@ optimizer) and **Farina's swept-sine method** (response and distortion from one 
 - **EQ can't create bass** a small speaker physically can't produce, and Speaker EQ won't push it into distortion.
 - **The EQ applies to audio from the device running Speaker EQ**, not to other phones or computers connected
   to the same speaker.
+- **Fire TV / Android TV:** can't measure (no usable microphone); import a measurement made on your phone.
 - **Android:**
   - Some phones block system-wide effects. The app tells you, and the EQ then works only in music players
     that have an equalizer setting.
@@ -142,6 +161,7 @@ optimizer) and **Farina's swept-sine method** (response and distortion from one 
 | "Microphone records noise/garbage" | Check the input device. Turn off mic noise suppression or lower the mic level |
 | "Recording too quiet" | Turn the speaker up and check it's connected and selected |
 | "Recording clipped" | Turn the speaker down or move the mic further away |
+| "This device has no usable microphone" | Fire TV / Android TV: measure on your phone, **Export…**, then **Import…** on the TV |
 | Sliders change nothing | Check the **Equalizer** switch is on. On Windows, check Equalizer APO is enabled for your speaker |
 | Sound got quieter on Windows | Expected: Equalizer APO has no limiter, so the EQ lowers the level to stay clip-free. Turn the speaker up |
 

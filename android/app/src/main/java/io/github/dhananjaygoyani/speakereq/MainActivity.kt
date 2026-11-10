@@ -1,11 +1,13 @@
 package io.github.dhananjaygoyani.speakereq
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Paint
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -15,6 +17,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -38,6 +41,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
@@ -80,7 +89,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // the service attaches the global effect asynchronously after start; report once it had the chance
-        window.decorView.postDelayed({ if (!measuring) status = eqStatus(state) }, 800)
+        window.decorView.postDelayed({ if (status == "Ready") status = eqStatus(state) }, 800) // keep import/measure messages
     }
 
     private fun eqStatus(s: Saved) = when {
@@ -137,6 +146,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Fire TV has no file picker: take the newest EQ text file in Downloads (e.g. saved by the Downloader app). */
+    private fun importFromDownloads() {
+        val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val file = dir.listFiles { f -> f.isFile && f.name.endsWith(".txt", true) && f.length() < 100_000 }
+            ?.sortedByDescending { it.lastModified() }?.firstOrNull { Dsp.parseApo(it.readText()).isNotEmpty() }
+        if (file == null) {
+            state = state.copy(diag = "No EQ file found in Downloads. Export the tuning from Speaker EQ on your phone or " +
+                "computer, put the file in this device's Download folder (for example with the Downloader app), " +
+                "then press Import again.")
+            status = "Nothing to import"
+            return
+        }
+        importText(file.readText(), file.name)
+    }
+
+    private fun importText(text: String, name: String) {
+        val f = Dsp.parseApo(text)
+        if (f.isEmpty()) { status = "No EQ filters found in $name"; return }
+        update(state.copy(auto = f, dev = null, autoOn = true, amount = 100f,
+            diag = "Imported ${f.size} filters from $name (measured on another device).\nThe Tone sliders still work on top."))
+        status = "Imported ${f.size} filters · ${eqStatus(state)}"
+    }
+
     @Composable
     private fun Screen() {
         var confirm by remember { mutableStateOf(false) }
@@ -156,6 +188,12 @@ class MainActivity : ComponentActivity() {
                 status = "Exported. Import it in Wavelet or Equalizer APO"
             }
         }
+        val importDoc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) contentResolver.openInputStream(uri)?.use { importText(it.readBytes().decodeToString(), "the file") }
+        }
+        val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) importFromDownloads() else status = "Storage permission is needed to import from Downloads"
+        }
         val s = state
 
         Column(
@@ -174,6 +212,15 @@ class MainActivity : ComponentActivity() {
             }
             Row(Modifier.padding(top = 10.dp, bottom = 4.dp)) {
                 Link("Reset") { update(s.copy(amount = 100f, sliders = TONES.associate { it.name to 0f })) }
+                Link("Import…") {
+                    try {
+                        importDoc.launch(arrayOf("text/*"))
+                    } catch (e: ActivityNotFoundException) { // Fire TV / Android TV: no document picker
+                        if (Build.VERSION.SDK_INT <= 32 &&
+                            checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                        ) storagePermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE) else importFromDownloads()
+                    }
+                }
                 Link("Export…") { export.launch("SpeakerEQ_APO.txt") }
             }
 
@@ -310,6 +357,8 @@ private fun AppleSlider(
     enabled: Boolean, onChange: (Float) -> Unit,
 ) {
     val change by rememberUpdatedState(onChange)
+    val current by rememberUpdatedState(value)
+    var focused by remember { mutableStateOf(false) }
     val r = 13.dp
     fun snap(v: Float) = ((v / step).roundToInt() * step).coerceIn(range.start, range.endInclusive)
     Canvas(
@@ -318,6 +367,16 @@ private fun AppleSlider(
                 progressBarRangeInfo = ProgressBarRangeInfo(value, range)
                 if (enabled) setProgress { change(snap(it)); true }
             }
+            .onFocusChanged { focused = it.isFocused }
+            .onKeyEvent { // TV remote: left/right adjusts, up/down moves on to the next control
+                if (it.type != KeyEventType.KeyDown) return@onKeyEvent false
+                when (it.key) {
+                    Key.DirectionLeft -> { change(snap(current - step)); true }
+                    Key.DirectionRight -> { change(snap(current + step)); true }
+                    else -> false
+                }
+            }
+            .focusable(enabled)
             .pointerInput(enabled, range) {
                 if (!enabled) return@pointerInput
                 val rp = r.toPx()
@@ -337,9 +396,10 @@ private fun AppleSlider(
         drawLine(TRACK, Offset(rp, cy), Offset(size.width - rp, cy), 4.dp.toPx(), StrokeCap.Round)
         drawLine(if (enabled) BLUE else DISABLED, Offset(x(if (bipolar) 0f else range.start), cy), Offset(x(value), cy), 4.dp.toPx(), StrokeCap.Round)
         if (bipolar) drawLine(DISABLED, Offset(x(0f), cy - 5.dp.toPx()), Offset(x(0f), cy + 5.dp.toPx()), 1.dp.toPx())
+        if (focused) drawCircle(BLUE.copy(alpha = 0.25f), rp + 6.dp.toPx(), Offset(x(value), cy)) // remote focus halo
         drawCircle(Color(0x22000000), rp, Offset(x(value), cy + 1.5.dp.toPx()))
         drawCircle(Color.White, rp, Offset(x(value), cy))
-        drawCircle(Color(0xFFD8D8DC), rp, Offset(x(value), cy), style = Stroke(1.dp.toPx()))
+        drawCircle(if (focused) BLUE else Color(0xFFD8D8DC), rp, Offset(x(value), cy), style = Stroke((if (focused) 2 else 1).dp.toPx()))
     }
 }
 
