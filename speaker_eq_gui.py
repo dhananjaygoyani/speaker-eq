@@ -383,7 +383,8 @@ class App:
         self.status.grid(row=1, column=0, sticky='w')
         links = tk.Frame(head, bg=BG)
         links.grid(row=0, column=2, rowspan=2, padx=(0, 16))
-        for text, cmd in (('Reset', self.reset), ('Export…', self.export), ('Send to TV…', self.send_tv),
+        for text, cmd in (('Reset', self.reset), ('Import…', self.import_eq), ('Export…', self.export),
+                          ('Send to TV…', self.send_tv),
                           ('Mic Calibration…', self.pick_cal)):
             lb = tk.Label(links, text=text, font=font(11), bg=BG, fg=BLUE, cursor='hand2')
             lb.pack(side='left', padx=8)
@@ -480,7 +481,8 @@ class App:
     # --- logic ---
     def filters(self):
         k = self.amount.get() / 100
-        auto = [(f, g * k, q, 'PK') for f, g, q in self.st['auto']] if self.auto_on.get() else []
+        # measured filters are [f, g, q]; imported ones also carry their kind (shelves)
+        auto = [(f, g * k, q, *(kind or ['PK'])) for f, g, q, *kind in self.st['auto']] if self.auto_on.get() else []
         tone = [(f, self.vars[n].get(), q, kind) for n, _hz, kind, f, q in SLIDERS]
         return auto + tone
 
@@ -584,6 +586,29 @@ class App:
         self.amount.set(100)
         for v in self.vars.values():
             v.set(0)
+
+    def import_eq(self, path=None):
+        """Load an EQ file (Speaker EQ Export from any device, AutoEQ, Equalizer APO) as the auto-tune."""
+        path = path or filedialog.askopenfilename(title='Import EQ file',
+                                                  filetypes=[('EQ files', '*.txt'), ('All files', '*')])
+        if not path:
+            return
+        try:
+            with open(path, encoding='utf-8', errors='replace') as fh:
+                filt = se.read_apo(fh.read(100_000))
+        except OSError as e:
+            self.status.config(text=f'Could not read {os.path.basename(path)}: {e.strerror}')
+            return
+        if not filt:
+            self.status.config(text=f'No EQ filters found in {os.path.basename(path)}')
+            return
+        self.st['auto'], self.st['dev'] = [list(f) for f in filt], None
+        self.st['diag'] = f'Imported {len(filt)} filters from {os.path.basename(path)}.\nThe Tone sliders still work on top.'
+        self.say(self.st['diag'])
+        self.done_msg = f'Imported {len(filt)} filters'
+        self.amount.set(100)
+        self.auto_on.set(True)  # traces call changed() -> redraw + apply
+        self.changed()
 
     def export(self):
         path = filedialog.asksaveasfilename(defaultextension='.txt', initialfile='SpeakerEQ_APO.txt')

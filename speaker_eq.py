@@ -141,6 +141,19 @@ def peq_db(params):
     return out
 
 
+def read_apo(text):
+    """Filters [(f, gain, Q, kind)] from an Equalizer APO / AutoEQ file (Speaker EQ's own Export, AutoEQ, ...).
+    Preamp lines are ignored: the app sets its own level. Untrusted input: only sane values are kept."""
+    import re
+    out = []
+    for kind, f, g, q in re.findall(r'Filter\s*\d*\s*:\s*ON\s+(PK|LSC|HSC)\s+Fc\s+([\d.]+)\s*Hz\s+Gain\s+(-?[\d.]+)\s*dB'
+                                    r'\s+Q\s+([\d.]+)', text, re.IGNORECASE):
+        f, g, q = float(f), float(g), float(q)
+        if 10 <= f <= 24000 and q > 0 and -30 <= g <= 30:
+            out.append((f, g, q, kind.upper()))
+    return out
+
+
 def write_apo(path, filters):
     """Equalizer APO / AutoEQ text, with a preamp so the EQ never clips."""
     preamp = -np.ceil(max(0, peq_db(filters).max()) * 10) / 10 + 0.0  # + 0.0 turns -0.0 into 0.0

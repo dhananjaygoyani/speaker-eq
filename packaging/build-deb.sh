@@ -2,7 +2,7 @@
 # Build dist/speaker-eq_<version>_all.deb  (Debian/Ubuntu, needs only dpkg-deb)
 set -e
 umask 022
-VERSION=1.1.1
+VERSION=1.1.2
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BUILD=$(mktemp -d)
 trap 'rm -rf "$BUILD"' EXIT

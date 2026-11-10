@@ -26,7 +26,7 @@ everything you play. Simple tone sliders on top let you adjust the sound to your
 | Platform | File | Applies the EQ through |
 |---|---|---|
 | **Windows 10/11** | `SpeakerEQ.exe` | [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) (free) |
-| **Linux** (Ubuntu/Debian) | `speaker-eq_1.1.1_all.deb` | EasyEffects + PipeWire |
+| **Linux** (Ubuntu/Debian) | `speaker-eq_1.1.2_all.deb` | EasyEffects + PipeWire |
 | **Android 9+** | `SpeakerEQ-1.1.1.apk` | Android's built-in system-wide audio effects |
 | **Fire TV / Android TV** | `SpeakerEQ-TV-1.1.1.apk` (the same app; either file works) | Same as Android: measure on a phone or PC, send it to the TV |
 
@@ -48,7 +48,7 @@ Tip: Equalizer APO ships with demo filters. Remove the `Include: example.txt` li
 ### Linux
 
 ```
-sudo apt install ./speaker-eq_1.1.1_all.deb
+sudo apt install ./speaker-eq_1.1.2_all.deb
 ```
 
 Then open **Speaker EQ** from your apps menu, or run `speaker-eq-gui`. apt installs everything it needs
@@ -109,6 +109,8 @@ even with the app closed. The code changes every time the device restarts.
    - **Tone sliders:** drag, scroll, or double-click/double-tap to reset.
    - **Auto-Tune / Equalizer switches:** compare with and without the EQ.
 5. Optional: **Send to TV…** sends the tuning to Speaker EQ on a Fire TV, Android TV or phone on the same Wi-Fi.
+6. Optional: **Import…** loads an EQ file instead of measuring: a Speaker EQ export from another device,
+   an AutoEQ profile, or an Equalizer APO config. Available on every platform.
 
 Your settings are saved and applied every time the app starts.
 

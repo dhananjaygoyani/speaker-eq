@@ -195,3 +195,35 @@ def test_send_to_tv(tmp_path):
     assert g.send_to_tv(addr, '0000', eq) == 'Wrong code'  # error body is shown to the user
     srv.shutdown()
     assert 'Could not reach' in g.send_to_tv('127.0.0.1:1', '1234', eq)
+
+
+def test_read_apo_roundtrip(tmp_path):
+    """Import reads our own Export (incl. shelves), AutoEQ files, and rejects junk values."""
+    filt = [(100.0, 4.0, 0.71, 'LSC'), (812.0, -5.5, 2.16, 'PK'), (8000.0, -2.0, 0.71, 'HSC')]
+    se.write_apo(tmp_path / 'eq.txt', filt)
+    assert se.read_apo((tmp_path / 'eq.txt').read_text()) == filt
+    autoeq = 'Preamp: -6.2 dB\nFilter 1: ON LSC Fc 105 Hz Gain 5.9 dB Q 0.70\nFilter 2: ON PK Fc 2400 Hz Gain -3.1 dB Q 1.41\n'
+    assert se.read_apo(autoeq) == [(105.0, 5.9, 0.7, 'LSC'), (2400.0, -3.1, 1.41, 'PK')]
+    assert se.read_apo('Filter 1: ON PK Fc 0 Hz Gain 99 dB Q 1\nhello') == []
+
+
+@pytest.mark.skipif(not os.environ.get('DISPLAY'), reason='needs a display')
+def test_gui_import(tmp_path, monkeypatch):
+    """Import… in the desktop app: filters (with shelf kinds) become the auto-tune and survive a restart."""
+    import tkinter as tk
+    import speaker_eq_gui as g
+    monkeypatch.setattr(g, 'STATE', str(tmp_path / 's.json'))
+    monkeypatch.setattr(g, 'OLD_STATE', str(tmp_path / 'none.json'))
+    se.write_apo(tmp_path / 'eq.txt', [(190.0, -8.0, 2.5, 'PK'), (100.0, 3.0, 0.71, 'LSC')])
+    root = tk.Tk()
+    app = g.App(root)
+    app.apply = lambda bypass=None: app.save_state()
+    app.import_eq(str(tmp_path / 'eq.txt'))
+    assert (190.0, -8.0, 2.5, 'PK') in app.filters() and (100.0, 3.0, 0.71, 'LSC') in app.filters()
+    assert 'Imported 2 filters' in app.log.get('1.0', 'end')
+    app.save_state()
+    root.destroy()
+    root = tk.Tk()
+    app2 = g.App(root)
+    assert (100.0, 3.0, 0.71, 'LSC') in app2.filters()  # kind survives the restart
+    root.destroy()
