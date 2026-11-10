@@ -27,8 +27,8 @@ everything you play. Simple tone sliders on top let you adjust the sound to your
 |---|---|---|
 | **Windows 10/11** | `SpeakerEQ.exe` | [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) (free) |
 | **Linux** (Ubuntu/Debian) | `speaker-eq_1.0.0_all.deb` | EasyEffects + PipeWire |
-| **Android 9+** | `SpeakerEQ-1.0.1.apk` | Android's built-in system-wide audio effects |
-| **Fire TV / Android TV** | `SpeakerEQ-1.0.1.apk` (same file) | Same as Android: measure on a phone, import on the TV |
+| **Android 9+** | `SpeakerEQ-1.1.0.apk` | Android's built-in system-wide audio effects |
+| **Fire TV / Android TV** | `SpeakerEQ-1.1.0.apk` (same file) | Same as Android: measure on a phone, import on the TV |
 
 Get them from the [Releases](../../releases) page.
 
@@ -64,7 +64,7 @@ sudo apt install python3-numpy python3-scipy python3-matplotlib python3-tk pytho
 
 ### Android
 
-1. Open **SpeakerEQ-1.0.1.apk** on your phone. Allow installing from your browser or file manager when Android asks.
+1. Open **SpeakerEQ-1.1.0.apk** on your phone. Allow installing from your browser or file manager when Android asks.
 2. Open **Speaker EQ** and allow the microphone when you first measure.
 
 The EQ keeps running in the background for every app; a "Speaker EQ is on" notification shows it's active.
@@ -78,13 +78,23 @@ result on the TV. The EQ then applies to every app on the Fire TV (Netflix, YouT
    (if Developer options is hidden: **About** → press the device name 7 times).
 2. Install the APK with the **Downloader** app, then pair your speaker under
    **Settings → Controllers & Bluetooth Devices**.
-3. On your phone: measure the speaker with Speaker EQ (same spot you'll listen from), then **Export…**.
-4. Get the exported `.txt` file into the Fire TV's **Download** folder, for example with the Downloader app
-   (download it from a link) or a "send files to TV" app.
-5. On the Fire TV: open Speaker EQ, select **Import…** and allow file access. It loads the newest EQ file
-   in Downloads.
+3. On your phone: measure the speaker with Speaker EQ (same spot you'll listen from).
+4. Send it wirelessly (below), or **Export…** the file and use **Import…** on the TV, which loads the newest
+   EQ file in the TV's Download folder.
 
 Use the remote's arrow keys to move between controls; ◀ ▶ adjusts the focused slider.
+
+### Wireless import (any two devices on the same Wi-Fi)
+
+Every device running Speaker EQ can receive an EQ over Wi-Fi. Its **Wireless import** card shows a 4-digit
+**code**, and an EQ is only accepted with that code.
+
+- **From a phone:** Speaker EQ → **Send to TV…** → pick the device (found automatically) → enter the code → **Send**.
+- **From a computer:** open the address shown on the card (e.g. `http://192.168.1.97:8765`) in a browser,
+  choose an exported EQ file or paste it, enter the code and press **Send**. No app needed on the computer.
+
+Files from Speaker EQ, AutoEQ and Equalizer APO all work. The receiver keeps listening while the EQ is on,
+even with the app closed. The code changes every time the device restarts.
 
 ## How to use
 

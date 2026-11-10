@@ -44,12 +44,14 @@ class EqService : Service() {
         else registerReceiver(sessions, filter)
         EqEngine.attach(0)
         EqEngine.apply(Store.load(this))
+        Wireless.start(this) // receive EQ from other devices on the Wi-Fi
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
     override fun onDestroy() {
         unregisterReceiver(sessions)
+        Wireless.stop(this)
         EqEngine.releaseAll()
         super.onDestroy()
     }

@@ -105,4 +105,17 @@ class DspTest {
         assertEquals(listOf(Filter(105.0, 5.9, 0.70, "LSC"), Filter(2400.0, -3.1, 1.41)), Dsp.parseApo(autoEq))
         assertTrue(Dsp.parseApo("hello\nFilter 1: ON PK Fc 0 Hz Gain 99 dB Q 1").isEmpty()) // junk rejected
     }
+
+    @Test fun wirelessImportRequests() {
+        val eq = "Preamp: -3 dB\nFilter 1: ON PK Fc 190 Hz Gain -8.0 dB Q 2.50\n"
+        assertTrue(Wireless.handle("GET", "/", "", "1234").body.contains("Code shown on the receiving screen"))
+        assertEquals(403, Wireless.handle("POST", "/eq?code=9999", eq, "1234").status) // wrong code: rejected
+        assertEquals(403, Wireless.handle("POST", "/eq", eq, "1234").status)            // no code: rejected
+        val ok = Wireless.handle("POST", "/eq?code=1234", eq, "1234")
+        assertEquals(200, ok.status)
+        assertEquals(listOf(Filter(190.0, -8.0, 2.5)), ok.filters)
+        assertEquals(400, Wireless.handle("POST", "/eq?code=1234", "not an eq", "1234").status)
+        assertEquals(413, Wireless.handle("POST", "/eq?code=1234", "x".repeat(70_000), "1234").status)
+        assertEquals(404, Wireless.handle("GET", "/admin", "", "1234").status)
+    }
 }

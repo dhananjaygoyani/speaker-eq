@@ -24,8 +24,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -57,6 +59,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.concurrent.thread
@@ -83,7 +86,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         state = Store.load(this)
         startForegroundService(Intent(this, EqService::class.java))
+        Wireless.onReceived = { s ->
+            state = s
+            status = "Received ${s.auto.size} filters wirelessly · ${eqStatus(s)}"
+        }
         setContent { Screen() }
+    }
+
+    override fun onDestroy() {
+        Wireless.onReceived = null
+        super.onDestroy()
     }
 
     override fun onResume() {
@@ -173,6 +185,7 @@ class MainActivity : ComponentActivity() {
     private fun Screen() {
         var confirm by remember { mutableStateOf(false) }
         var noBluetooth by remember { mutableStateOf(false) }
+        var sending by remember { mutableStateOf(false) }
         val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) confirm = true else status = "Microphone permission is needed to measure"
         }
@@ -222,6 +235,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 Link("Export…") { export.launch("SpeakerEQ_APO.txt") }
+                Link("Send to TV…") { sending = true }
             }
 
             Card {
@@ -252,6 +266,22 @@ class MainActivity : ComponentActivity() {
             Section("FREQUENCY RESPONSE")
             Card { Graph(s) }
 
+            Section("WIRELESS IMPORT")
+            Card {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Receive EQ from another device", fontSize = 15.sp, color = TEXT)
+                        Text("Phone: Speaker EQ → Send to TV…" +
+                            (Wireless.localAddress()?.let { "\nComputer: open http://$it in a browser" } ?: ""),
+                            fontSize = 12.sp, color = SUB, lineHeight = 17.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("CODE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SUB)
+                        Text(Wireless.code, fontSize = 30.sp, fontWeight = FontWeight.Bold, color = BLUE, letterSpacing = 4.sp)
+                    }
+                }
+            }
+
             Section("DIAGNOSIS")
             Card {
                 Text(
@@ -266,6 +296,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        if (sending) SendDialog(Dsp.apoText(s.filters())) { sending = false }
         if (noBluetooth) AlertDialog(
             onDismissRequest = { noBluetooth = false },
             title = { Text("No Bluetooth speaker") },
@@ -284,6 +315,57 @@ class MainActivity : ComponentActivity() {
             dismissButton = { TextButton({ confirm = false }) { Text("Cancel") } },
         )
     }
+}
+
+/** Finds Speaker EQ devices on the Wi-Fi (or takes an address), asks for the receiver's code, sends the EQ. */
+@Composable
+private fun SendDialog(text: String, onClose: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val found = remember { mutableStateListOf<Pair<String, String>>() }
+    var address by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    val own = remember { Wireless.localAddress() }
+    DisposableEffect(Unit) {
+        val stop = Wireless.discover(ctx) { name, addr ->
+            val self = addr == own || name == "Speaker EQ on ${android.os.Build.MODEL}" // own address can differ (NAT)
+            if (!self && found.none { it.second == addr }) {
+                found += name to addr
+                if (address.isEmpty()) address = addr
+            }
+        }
+        onDispose { stop() }
+    }
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Send EQ to another device") },
+        text = {
+            Column {
+                Text(if (found.isEmpty()) "Searching your Wi-Fi… Open Speaker EQ on the TV, or type its address below."
+                    else "Found on your Wi-Fi:", fontSize = 13.sp, color = SUB)
+                found.forEach { (name, addr) ->
+                    Text("${if (addr == address) "● " else "○ "}$name", fontSize = 15.sp, color = TEXT,
+                        modifier = Modifier.fillMaxWidth().clickable { address = addr }.padding(vertical = 6.dp))
+                }
+                OutlinedTextField(address, { address = it }, label = { Text("Address (e.g. 192.168.1.97:8765)") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                OutlinedTextField(code, { code = it.filter(Char::isDigit).take(4) }, label = { Text("Code shown on the TV") },
+                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                if (result.isNotEmpty()) Text(result, fontSize = 13.sp, color = TEXT, modifier = Modifier.padding(top = 8.dp))
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !busy && address.isNotBlank() && code.length == 4, onClick = {
+                busy = true
+                result = "Sending…"
+                val a = if (':' in address) address else "$address:${Wireless.PORT}"
+                thread { val r = Wireless.send(a, code, text); android.os.Handler(android.os.Looper.getMainLooper()).post { result = r; busy = false } }
+            }) { Text("Send") }
+        },
+        dismissButton = { TextButton(onClose) { Text("Close") } },
+    )
 }
 
 @Composable
